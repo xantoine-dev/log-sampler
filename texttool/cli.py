@@ -112,7 +112,7 @@ def _run_summarize(args: argparse.Namespace) -> None:
     observations: list[BenchmarkObservation] | None = None
 
     if cache and not args.compare:
-        cached = cache.get(path)
+        cached = cache.get(path, top_words=args.top_words)
         if cached:
             summary = LogSummary.from_dict(cached)
             print("Loaded summary from cache", file=sys.stderr)
@@ -136,7 +136,7 @@ def _run_summarize(args: argparse.Namespace) -> None:
                 ),
             )
         if cache:
-            cache.set(path, summary.to_dict())
+            cache.set(path, summary.to_dict(), top_words=args.top_words)
 
     _render_summary(summary, as_json=args.json)
     if observations:
