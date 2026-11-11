@@ -15,6 +15,7 @@ class CacheEntry:
     size: int
     mtime: float
     summary: dict[str, Any]
+    top_words: int = 10
 
     def matches_file(self, path: Path) -> bool:
         stats = path.stat()
@@ -38,8 +39,14 @@ class SummaryCache:
             return
         data = json.loads(self.cache_path.read_text())
         self._entries = {
-            path: CacheEntry(size=entry["size"], mtime=entry["mtime"], summary=entry["summary"])
+            path: CacheEntry(
+                size=entry["size"],
+                mtime=entry["mtime"],
+                summary=entry["summary"],
+                top_words=entry["top_words"],
+            )
             for path, entry in data.items()
+            if "top_words" in entry
         }
 
     def _persist(self) -> None:
@@ -47,12 +54,12 @@ class SummaryCache:
         serializable = {path: asdict(entry) for path, entry in self._entries.items()}
         self.cache_path.write_text(json.dumps(serializable, indent=2))
 
-    def get(self, path: Path | str) -> dict[str, Any] | None:
+    def get(self, path: Path | str, *, top_words: int = 10) -> dict[str, Any] | None:
         self._load()
         assert self._entries is not None
         normalized = str(Path(path).resolve())
         entry = self._entries.get(normalized)
-        if not entry:
+        if not entry or entry.top_words != top_words:
             return None
         try:
             if entry.matches_file(Path(path)):
@@ -61,7 +68,7 @@ class SummaryCache:
             return None
         return None
 
-    def set(self, path: Path | str, summary: dict[str, Any]) -> None:
+    def set(self, path: Path | str, summary: dict[str, Any], *, top_words: int = 10) -> None:
         self._load()
         assert self._entries is not None
         resolved = Path(path).resolve()
@@ -70,6 +77,7 @@ class SummaryCache:
             size=stats.st_size,
             mtime=stats.st_mtime,
             summary=summary,
+            top_words=top_words,
         )
         self._persist()
 
